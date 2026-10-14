@@ -53,15 +53,19 @@ Semantics: one sample per completed LLM response. `tok/s` = output tokens ÷ dec
 
 ## Install
 
-### Download the app (Apple Silicon)
+Apple Silicon, macOS 13+.
+
+### One-liner
 
 ```sh
-curl -LO https://github.com/reedchan7/toks/releases/latest/download/Toks.zip
-unzip Toks.zip
-sh Toks.app/Contents/Resources/install.sh
+curl -fsSL https://raw.githubusercontent.com/reedchan7/toks/main/scripts/install-web.sh | bash
 ```
 
-The bundled installer moves Toks.app to `~/Applications`, clears the quarantine flag (the build is ad-hoc signed, not notarized), registers the collector as a launchd agent (`com.reedchan.toks.collector`), installs the pi extension, and launches the app. pi picks up the extension on its next start.
+### DMG
+
+Download [Toks.dmg](https://github.com/reedchan7/toks/releases/latest/download/Toks.dmg), open it, and drag Toks to Applications. The build is ad-hoc signed (not notarized), so the first launch needs right-click → Open. Toks then offers to install its background collector itself — click **Install**, no terminal needed.
+
+Both flows end the same way: Toks.app in your Applications folder, the collector registered as a launchd agent (`com.reedchan.toks.collector`), the pi extension installed (pi picks it up on its next start), and the app running in your menu bar.
 
 If you use DSH, `brew install zstd` first — its session logs are zstd-compressed. Every other source works out of the box.
 
@@ -79,7 +83,7 @@ cd toks
 sh scripts/install.sh
 ```
 
-Requires bun and Xcode Command Line Tools. The build compiles the collector into the app bundle, so the installed result is identical to the release zip. Uninstall with `scripts/uninstall.sh`.
+Requires bun and Xcode Command Line Tools. The build compiles the collector into the app bundle, so the installed result is identical to the release artifacts. Uninstall with `scripts/uninstall.sh`.
 
 ## Develop
 

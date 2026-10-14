@@ -12,11 +12,16 @@ LABEL="com.reedchan.toks.collector"
 
 mkdir -p "$STATE_DIR/events" "$HOME/Library/LaunchAgents" "$HOME/Applications"
 
-if [ "$BUNDLE" != "$APP" ]; then
-  echo "==> Installing Toks.app to ~/Applications"
-  rm -rf "$APP"
-  ditto "$BUNDLE" "$APP"
-fi
+# Already in an Applications folder (e.g. dragged there from the DMG):
+# install in place; otherwise stage into ~/Applications first.
+case "$BUNDLE" in
+  "/Applications/Toks.app"|"$HOME/Applications/Toks.app")
+    APP="$BUNDLE" ;;
+  *)
+    echo "==> Installing Toks.app to ~/Applications"
+    rm -rf "$APP"
+    ditto "$BUNDLE" "$APP" ;;
+esac
 
 # Ad-hoc signed build: clear quarantine so Gatekeeper lets it run.
 xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
@@ -55,8 +60,12 @@ mkdir -p "$HOME/.pi/agent/extensions"
 cp "$APP/Contents/Resources/toks-reporter.ts" "$HOME/.pi/agent/extensions/toks-reporter.ts"
 
 echo "==> Launching Toks.app"
-osascript -e 'quit app "Toks"' 2>/dev/null || true
-sleep 1
+# TOKS_SKIP_QUIT: the app's first-launch self-install terminates itself, and
+# osascript quit from inside Toks would trigger an automation consent prompt.
+if [ "${TOKS_SKIP_QUIT:-}" != "1" ]; then
+  osascript -e 'quit app "Toks"' 2>/dev/null || true
+  sleep 1
+fi
 open "$APP"
 
 echo "Done. Logs: $STATE_DIR/collector.log"

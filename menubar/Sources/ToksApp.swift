@@ -7,12 +7,14 @@ final class UIState: ObservableObject {
     @Published var showSettingsRequested = false
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate {
     private let settings = SettingsStore()
     private let uiState = UIState()
     private var store: StatsStore!
     private var statusItem: NSStatusItem!
     private var popover: NSPopover?
+    private var setupWindow: NSWindow?
+    private let setupState = SetupState()
     private var cancellable: AnyCancellable?
     private var monitors: [Any] = []
 
@@ -54,7 +56,72 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         hosting.sizingOptions = [.preferredContentSize]
         popover.contentViewController = hosting
         self.popover = popover
+
+        maybeShowSetup()
         #endif
+    }
+
+    // MARK: - First-launch setup
+
+    private var collectorInstalled: Bool {
+        FileManager.default.fileExists(
+            atPath: NSHomeDirectory() + "/Library/LaunchAgents/com.reedchan.toks.collector.plist")
+    }
+
+    private func maybeShowSetup() {
+        guard !collectorInstalled else { return }
+        let view = SetupView(
+            state: setupState,
+            onInstall: { [weak self] in self?.runInstaller() },
+            onQuit: { NSApp.terminate(nil) })
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 260),
+            styleMask: [.titled, .closable],
+            backing: .buffered, defer: false)
+        window.title = "Toks"
+        window.contentViewController = NSHostingController(rootView: view)
+        window.center()
+        window.delegate = self
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        setupWindow = window
+    }
+
+    private func runInstaller() {
+        guard let script = Bundle.main.url(forResource: "install", withExtension: "sh") else {
+            setupState.error = "install.sh is missing from the app bundle."
+            return
+        }
+        setupState.installing = true
+        setupState.error = nil
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/bin/sh")
+        var env = ProcessInfo.processInfo.environment
+        env["TOKS_SKIP_QUIT"] = "1" // the script's osascript quit would prompt for automation consent
+        proc.environment = env
+        proc.arguments = [script.path]
+        proc.terminationHandler = { p in
+            DispatchQueue.main.async { [weak self] in
+                if p.terminationStatus == 0 {
+                    // The installer already launched the installed copy.
+                    NSApp.terminate(nil)
+                } else {
+                    self?.setupState.installing = false
+                    self?.setupState.error =
+                        "Install failed (exit \(p.terminationStatus)). Run scripts/install.sh from a terminal for details."
+                }
+            }
+        }
+        do {
+            try proc.run()
+        } catch {
+            setupState.installing = false
+            setupState.error = "Could not start the installer: \(error.localizedDescription)"
+        }
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        if notification.object as? NSWindow === setupWindow { NSApp.terminate(nil) }
     }
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
