@@ -1,0 +1,7 @@
+{
+  "name": "toks-collector",
+  "type": "module",
+  "scripts": {
+    "start": "bun src/main.ts"
+  }
+}
