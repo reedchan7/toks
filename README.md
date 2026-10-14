@@ -53,27 +53,43 @@ Semantics: one sample per completed LLM response. `tok/s` = output tokens ÷ dec
 
 ## Install
 
+### Download the app (Apple Silicon)
+
 ```sh
-sh scripts/install.sh
+curl -LO https://github.com/reedchan7/toks/releases/latest/download/Toks.zip
+unzip Toks.zip
+sh Toks.app/Contents/Resources/install.sh
 ```
 
-Builds `Toks.app` into `~/Applications`, registers the collector as a launchd agent (`com.reedchan.toks.collector`), installs the pi extension, and launches the app. pi picks up the extension on its next start.
+The bundled installer moves Toks.app to `~/Applications`, clears the quarantine flag (the build is ad-hoc signed, not notarized), registers the collector as a launchd agent (`com.reedchan.toks.collector`), installs the pi extension, and launches the app. pi picks up the extension on its next start.
+
+If you use DSH, `brew install zstd` first — its session logs are zstd-compressed. Every other source works out of the box.
 
 Uninstall (keeps metrics history in `~/.local/share/toks/`):
 
 ```sh
-sh scripts/uninstall.sh
+sh ~/Applications/Toks.app/Contents/Resources/uninstall.sh
 ```
+
+### Build from source
+
+```sh
+git clone https://github.com/reedchan7/toks.git
+cd toks
+sh scripts/install.sh
+```
+
+Requires bun and Xcode Command Line Tools. The build compiles the collector into the app bundle, so the installed result is identical to the release zip. Uninstall with `scripts/uninstall.sh`.
 
 ## Develop
 
-- Collector: `bun collector/src/main.ts` (foreground, logs to stdout). Env knobs: `TOKS_ACTIVE_MS` (how far back file discovery looks, default 30 min), `TOKS_ZCODE_SINCE_MS` (zcode backfill window at startup).
+- Collector: stop the launchd agent first (`launchctl bootout gui/$(id -u)/com.reedchan.toks.collector`), then `bun collector/src/main.ts` in the foreground. Env knobs: `TOKS_ACTIVE_MS` (how far back file discovery looks, default 30 min), `TOKS_ZCODE_SINCE_MS` (zcode backfill window at startup).
 - App: `sh menubar/build.sh` → `menubar/build/Toks.app`; `sh menubar/build.sh debug` builds a windowed variant for inspecting the UI without the menu bar.
 - Logs: `~/.local/share/toks/collector.log`; state: `~/.local/share/toks/{stats.json,state.json}`.
 
 ## Requirements
 
-macOS 13+, Command Line Tools (swiftc), bun, zstd, sqlite3.
+macOS 13+ on Apple Silicon. Optional: zstd (DSH source only). Building from source additionally needs bun and Xcode Command Line Tools. sqlite3 is part of macOS.
 
 ## License
 
