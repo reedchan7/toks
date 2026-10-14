@@ -1,5 +1,5 @@
 import { Tailer } from "../tail.ts";
-import type { Poll, Sample, Source } from "../stats.ts";
+import { startOfLocalDay, type Poll, type Sample, type Source, type UsagePoll } from "../stats.ts";
 
 interface Pending {
   requestId: string;
@@ -50,8 +50,12 @@ function finalize(p: Pending): Sample | null {
   return { ttftMs, tokPerSec, outputTokens: p.output, approx: true, at: p.lastTs, model: p.model };
 }
 
-export function createClaudeSource(poll: Poll): Source {
-  const tailer = new Tailer("~/.claude/projects/*/**/*.jsonl");
+export function createClaudeSource(poll: Poll, usage: UsagePoll): Source {
+  const tailer = new Tailer(
+    "~/.claude/projects/*/**/*.jsonl",
+    undefined,
+    startOfLocalDay(Date.now()),
+  );
   const files = new Map<string, FileState>();
   return {
     name: "claude",
@@ -69,6 +73,30 @@ export function createClaudeSource(poll: Poll): Source {
             continue;
           }
           const ts = typeof d?.timestamp === "string" ? Date.parse(d.timestamp) : NaN;
+          // Usage accounting happens before every speed filter (sidechain
+          // skip, anchor checks) so no request is lost.
+          const u = d?.message?.usage;
+          if (d?.type === "assistant" && u && Number.isFinite(ts)) {
+            const input = u.input_tokens ?? 0;
+            const output = u.output_tokens ?? 0;
+            const cacheRead = u.cache_read_input_tokens ?? 0;
+            const cc =
+              u.cache_creation_input_tokens ??
+              (u.cache_creation
+                ? (u.cache_creation.ephemeral_5m_input_tokens ?? 0) +
+                  (u.cache_creation.ephemeral_1h_input_tokens ?? 0)
+                : 0);
+            if (input > 0 || output > 0 || cacheRead > 0 || cc > 0) {
+              usage("claude", {
+                at: ts,
+                id: d.message?.id ? `${d.message.id}:${d.requestId ?? ""}` : null,
+                input,
+                output,
+                cacheRead,
+                cacheCreation: cc,
+              });
+            }
+          }
           // Sidechain (subagent) records interleave with main-thread work and
           // poison both block gaps and anchors; skip them entirely.
           if (d?.isSidechain === true) continue;

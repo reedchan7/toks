@@ -1,13 +1,17 @@
 import { Tailer } from "../tail.ts";
-import type { Poll, Source } from "../stats.ts";
+import { startOfLocalDay, type Poll, type Source, type UsagePoll } from "../stats.ts";
 
 interface FileState {
   turnOutput: number | null; // latest turn_token_usage.output_tokens (cumulative per turn)
   acc: number; // fallback accumulator from payload.usage.output_tokens
 }
 
-export function createCodexSource(poll: Poll): Source {
-  const tailer = new Tailer("~/.codex/sessions/*/*/*/rollout-*.jsonl");
+export function createCodexSource(poll: Poll, usage: UsagePoll): Source {
+  const tailer = new Tailer(
+    "~/.codex/sessions/*/*/*/rollout-*.jsonl",
+    undefined,
+    startOfLocalDay(Date.now()),
+  );
   const files = new Map<string, FileState>();
   return {
     name: "codex",
@@ -24,6 +28,28 @@ export function createCodexSource(poll: Poll): Source {
           }
           const p = d?.payload;
           if (d?.type === "token_usage_record") {
+            // payload.usage is the per-request delta; input_tokens includes
+            // the cached part. Subtracting both cache fields keeps the total
+            // equal to the provider's total_tokens regardless of whether
+            // cache_write is folded into input.
+            const u = p?.usage;
+            const ts = typeof d.timestamp === "string" ? Date.parse(d.timestamp) : NaN;
+            if (u && Number.isFinite(ts)) {
+              const cacheRead = u.cached_input_tokens ?? 0;
+              const cc = u.cache_write_input_tokens ?? 0;
+              const input = Math.max(0, (u.input_tokens ?? 0) - cacheRead - cc);
+              const output = u.output_tokens ?? 0;
+              if (input > 0 || output > 0 || cacheRead > 0 || cc > 0) {
+                usage("codex", {
+                  at: ts,
+                  id: p.response_id ?? null,
+                  input,
+                  output,
+                  cacheRead,
+                  cacheCreation: cc,
+                });
+              }
+            }
             const turn = p?.turn_token_usage?.output_tokens;
             if (turn != null) st.turnOutput = turn;
             else if (p?.usage?.output_tokens != null) st.acc += p.usage.output_tokens;

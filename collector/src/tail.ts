@@ -37,11 +37,17 @@ export class Tailer {
   constructor(
     private pattern: string, // ~-prefixed glob
     private read: Reader = fileReader,
+    // Track files modified since this time (e.g. start of today) instead of
+    // only the last ACTIVE_MS, so usage accounting sees the whole day.
+    // Ignored when TOKS_ACTIVE_MS is set (parser verification).
+    private sinceMs?: number,
   ) {}
 
   async tick(): Promise<Chunk[]> {
     const now = Date.now();
     const out: Chunk[] = [];
+    const cutoff =
+      this.sinceMs != null && !process.env.TOKS_ACTIVE_MS ? this.sinceMs : now - ACTIVE_MS;
     let paths: string[] = [];
     try {
       paths = await Array.fromAsync(
@@ -53,7 +59,7 @@ export class Tailer {
     for (const path of paths) {
       try {
         const st = await stat(path);
-        if (now - st.mtimeMs > ACTIVE_MS) continue;
+        if (st.mtimeMs < cutoff) continue;
         let e = this.entries.get(path);
         if (!e) {
           e = { offset: 0, mtimeMs: 0, changedAt: now };

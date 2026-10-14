@@ -11,6 +11,7 @@ A macOS menu bar widget that shows live LLM performance — **TTFT** and **decod
 │ ● Kimi Code                       33 tok/s │
 │    ▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▂▂▃▂▁▁▁▁▁▁▁▁               │
 │    Avg 48 tok/s · TTFT 4.5s · Avg 5.0s     │
+│    Tokens today 30.1M                      │
 │ ● Claude Code                    ~97 tok/s │
 │    ▁▂▃▅▂▃▄▃▃▄▄▃▃▄▄▅▄▅▄▅▅▄▅▄▃▁               │
 │    Avg 120 tok/s · TTFT ~950ms · Avg 2.0s  │
@@ -19,7 +20,7 @@ A macOS menu bar widget that shows live LLM performance — **TTFT** and **decod
 └─────────────────────────────────────────────┘
 ```
 
-The menu bar shows the first visible agent's name + latest tok/s (e.g. `Kimi 33 tok/s`). Click it for the dropdown: every agent with data gets a live tok/s sparkline (hover for per-sample values), rolling averages, and TTFT. `~` marks approximate values. Rows dim and show an age (`5d ago`) when an agent goes idle — the layout never collapses.
+The menu bar shows the first visible agent's name + latest tok/s (e.g. `Kimi 33 tok/s`). Click it for the dropdown: every agent with data gets a live tok/s sparkline (hover for per-sample values), rolling averages, and TTFT. `~` marks approximate values. Rows dim and show an age (`5d ago`) when an agent goes idle — the layout never collapses. Each row also shows **Tokens today**: total tokens the agent has used since local midnight (hover the line for the input / output / cache-read / cache-write breakdown).
 
 Right-click the menu bar item for **Refresh Now**, **Pause Refresh**, **Settings…** (refresh interval 1s/2s/5s, drag-to-reorder agents, visibility toggles) and **Quit**. Settings persist to `~/.local/share/toks/settings.json` and apply live.
 
@@ -50,6 +51,8 @@ No agent configuration is modified except pi (one extension file) — everything
 | agy (Antigravity) | — | — | — | unsupported: session store is encrypted protobuf, logs carry no timing |
 
 Semantics: one sample per completed LLM response. `tok/s` = output tokens ÷ decode time (excludes TTFT). Averages are arithmetic means over the last 200 samples per agent, persisted in `state.json` across restarts. Samples merge across concurrent sessions/subagents of the same agent; the per-agent window is kept time-sorted so the sparkline and latest value always reflect chronology.
+
+**Today** counts one usage record per LLM request (emitted before any speed filtering, so sidechains and aborted turns count too), deduplicated by record id — per-field max wins, so log replays and streaming re-reports can't double count — and bucketed by the record's own local calendar day. The total sums input + output + cache-read + cache-write; sources whose `input` already includes cached tokens (Codex, ZCode) are normalized so the four fields never overlap. At startup the collector scans all files modified since local midnight, so usage survives collector restarts without any persisted counters.
 
 ## Install
 

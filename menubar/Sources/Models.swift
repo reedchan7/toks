@@ -17,6 +17,16 @@ struct AgentStats: Codable {
     let last: Sample?
     let avg: AvgStats?
     let recent: [RecentPoint]? // ascending by at, up to 30
+    let today: TodayUsage? // nil when the collector is older than this field
+}
+
+struct TodayUsage: Codable {
+    let date: String // YYYY-MM-DD, local
+    let input: Int
+    let output: Int
+    let cacheRead: Int
+    let cacheCreation: Int
+    let total: Int
 }
 
 struct Sample: Codable {
@@ -79,6 +89,13 @@ func formatAge(msAgo: Double) -> String {
     let h = m / 60
     if h < 24 { return "\(h)h" }
     return "\(h / 24)d"
+}
+
+func formatTokens(_ n: Int) -> String {
+    if n < 1_000 { return "\(n)" }
+    if n < 1_000_000 { return String(format: "%.1fk", Double(n) / 1_000) }
+    if n < 1_000_000_000 { return String(format: "%.1fM", Double(n) / 1_000_000) }
+    return String(format: "%.2fB", Double(n) / 1_000_000_000)
 }
 
 // Drag reorder: swap when the dragged row's center crosses a neighbor's center.

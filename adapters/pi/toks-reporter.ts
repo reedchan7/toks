@@ -50,7 +50,10 @@ export default function (pi: ExtensionAPI) {
 
   pi.on('message_end', async (event) => {
     if (event.message.role !== 'assistant') return
-    const message = event.message as { model?: unknown; usage?: { output?: number } }
+    const message = event.message as {
+      model?: unknown
+      usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number }
+    }
     const now = Date.now()
     const decodeMs = firstTokenAt !== null ? now - firstTokenAt : null
     const timed = decodeMs !== null && decodeMs >= MIN_DECODE_MS
@@ -62,6 +65,7 @@ export default function (pi: ExtensionAPI) {
         ttftMs: timed && requestAt !== null ? firstTokenAt! - requestAt : null,
         decodeMs: timed ? decodeMs : null,
         outputTokens: message.usage?.output ?? 0,
+        usage: message.usage ?? null,
       }) + '\n'
     clear()
     await mkdir(EVENTS_DIR, { recursive: true }).catch(() => {})

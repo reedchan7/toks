@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { Stats, type Sample } from "./stats.ts";
+import { Stats, type Sample, type Usage } from "./stats.ts";
 import { createKimiSource } from "./sources/kimi.ts";
 import { createClaudeSource } from "./sources/claude.ts";
 import { createCodexSource } from "./sources/codex.ts";
@@ -9,7 +9,7 @@ import { createZcodeSource } from "./sources/zcode.ts";
 import { createEventsSource } from "./sources/events.ts";
 
 const TICK_MS = 1500;
-const DIR = join(homedir(), ".local/share/toks");
+const DIR = process.env.TOKS_DIR || join(homedir(), ".local/share/toks");
 
 const log = (msg: string) => console.log(`${new Date().toISOString()} ${msg}`);
 
@@ -21,13 +21,15 @@ const poll = (agent: string, s: Sample) => {
   log(`sample ${agent} ttft=${s.ttftMs ?? "-"} tps=${s.tokPerSec?.toFixed(1) ?? "-"} out=${s.outputTokens ?? "-"}${s.approx ? " approx" : ""}`);
 };
 
+const usagePoll = (agent: string, u: Usage) => stats.addUsage(agent, u);
+
 const sources = [
-  createKimiSource(poll),
-  createClaudeSource(poll),
-  createCodexSource(poll),
-  createDshSource(poll),
-  createZcodeSource(poll),
-  createEventsSource(poll),
+  createKimiSource(poll, usagePoll),
+  createClaudeSource(poll, usagePoll),
+  createCodexSource(poll, usagePoll),
+  createDshSource(poll, usagePoll),
+  createZcodeSource(poll, usagePoll),
+  createEventsSource(poll, usagePoll),
 ];
 
 const shutdown = async () => {

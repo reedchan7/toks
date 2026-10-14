@@ -1,5 +1,5 @@
 import { Tailer, type Reader } from "../tail.ts";
-import type { Poll, Source } from "../stats.ts";
+import { startOfLocalDay, type Poll, type Source, type UsagePoll } from "../stats.ts";
 
 const MIN_DECODE_MS = 50;
 
@@ -15,8 +15,12 @@ const zstdReader: Reader = async (path, offset) => {
   return { text: sub.slice(0, nl + 1), next: offset + nl + 1 };
 };
 
-export function createDshSource(poll: Poll): Source {
-  const tailer = new Tailer("~/.dsh/sessions/*/*/session.v4.jsonl.zstd", zstdReader);
+export function createDshSource(poll: Poll, usage: UsagePoll): Source {
+  const tailer = new Tailer(
+    "~/.dsh/sessions/*/*/session.v4.jsonl.zstd",
+    zstdReader,
+    startOfLocalDay(Date.now()),
+  );
   // Latest request dispatch time per file, from step/start and request/header
   // records; stream[0] (block-start) is too late to anchor TTFT.
   const dispatch = new Map<string, number>();
@@ -33,6 +37,25 @@ export function createDshSource(poll: Poll): Source {
             }
             if (d?.type !== "assistant/message") continue;
             const data = d.data;
+            // Usage before the stream/timing filters; dsh records carry no id,
+            // so dedup falls back to the content signature.
+            const u = data?.usage;
+            if (u && typeof d.time === "number") {
+              const input = u.inputTokens ?? 0;
+              const output = u.outputTokens ?? 0;
+              const cacheRead = u.cacheReadTokens ?? 0;
+              const cc = u.cacheWriteTokens ?? 0;
+              if (input > 0 || output > 0 || cacheRead > 0 || cc > 0) {
+                usage("dsh", {
+                  at: d.time,
+                  id: null,
+                  input,
+                  output,
+                  cacheRead,
+                  cacheCreation: cc,
+                });
+              }
+            }
             const output = data?.usage?.outputTokens;
             const stream: any[] = data?.stream;
             if (output == null || !Array.isArray(stream) || stream.length === 0) continue;

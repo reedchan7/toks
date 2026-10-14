@@ -73,7 +73,7 @@ struct ContentView: View {
 
     static func hasData(_ agent: AgentStats?) -> Bool {
         guard let agent else { return false }
-        return agent.last != nil || agent.avg != nil
+        return agent.last != nil || agent.avg != nil || agent.today != nil
     }
 
     private func warning(_ text: String) -> some View {
@@ -124,11 +124,20 @@ private struct AgentRow: View {
                     .padding(.leading, 13)
                     .opacity(stale ? 0.45 : 1)
                 let mark = agent.last?.approx == true && agent.last?.ttftMs != nil ? "~" : ""
-                Text("Avg \(formatTps(agent.avg?.tokPerSec)) tok/s · TTFT \(mark)\(formatTtft(agent.last?.ttftMs)) · Avg \(formatTtft(agent.avg?.ttftMs))" + ageSuffix(agent, stale: stale))
+                let summary = "Avg \(formatTps(agent.avg?.tokPerSec)) tok/s · TTFT \(mark)\(formatTtft(agent.last?.ttftMs)) · Avg \(formatTtft(agent.avg?.ttftMs))" + ageSuffix(agent, stale: stale)
+                Text(summary)
                     .font(.system(size: 11))
                     .monospacedDigit()
                     .foregroundStyle(stale ? .tertiary : .secondary)
                     .padding(.leading, 13)
+                if let today = agent.today {
+                    Text("Tokens today \(formatTokens(today.total))")
+                        .font(.system(size: 11))
+                        .monospacedDigit()
+                        .foregroundStyle(stale ? .tertiary : .secondary)
+                        .padding(.leading, 13)
+                        .help(todayHelp(today))
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -138,6 +147,10 @@ private struct AgentRow: View {
     private func ageSuffix(_ agent: AgentStats, stale: Bool) -> String {
         guard stale, let at = agent.last?.at else { return "" }
         return " · \(formatAge(msAgo: now.timeIntervalSince1970 * 1000 - Double(at))) ago"
+    }
+
+    private func todayHelp(_ t: TodayUsage) -> String {
+        "Tokens today (\(t.date))\nInput \(formatTokens(t.input)) · Output \(formatTokens(t.output))\nCache read \(formatTokens(t.cacheRead)) · Cache write \(formatTokens(t.cacheCreation))"
     }
 
     private var accent: Color {

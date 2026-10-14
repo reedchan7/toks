@@ -1,9 +1,13 @@
 import { Tailer } from "../tail.ts";
-import type { Poll, Source } from "../stats.ts";
+import { startOfLocalDay, type Poll, type Source, type UsagePoll } from "../stats.ts";
 
 // Push channel: the pi extension (adapters/pi/toks-reporter.ts) appends one JSON line per response.
-export function createEventsSource(poll: Poll): Source {
-  const tailer = new Tailer("~/.local/share/toks/events/*.jsonl");
+export function createEventsSource(poll: Poll, usage: UsagePoll): Source {
+  const tailer = new Tailer(
+    "~/.local/share/toks/events/*.jsonl",
+    undefined,
+    startOfLocalDay(Date.now()),
+  );
   return {
     name: "events",
     async tick() {
@@ -12,6 +16,22 @@ export function createEventsSource(poll: Poll): Source {
           try {
             const d = JSON.parse(line);
             if (typeof d?.ts !== "number") continue;
+            // New lines carry a full usage object; old ones only outputTokens.
+            const u = d.usage;
+            const output = u?.output ?? d.outputTokens ?? 0;
+            const input = u?.input ?? 0;
+            const cacheRead = u?.cacheRead ?? 0;
+            const cc = u?.cacheWrite ?? 0;
+            if (input > 0 || output > 0 || cacheRead > 0 || cc > 0) {
+              usage(d.agent ?? "pi", {
+                at: d.ts,
+                id: null,
+                input,
+                output,
+                cacheRead,
+                cacheCreation: cc,
+              });
+            }
             const decodeMs = d.decodeMs;
             poll(d.agent ?? "pi", {
               ttftMs: d.ttftMs ?? null,
