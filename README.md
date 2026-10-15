@@ -12,15 +12,15 @@ A macOS menu bar widget that shows live LLM performance — **TTFT** and **decod
 │    ▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▂▂▃▂▁▁▁▁▁▁▁▁               │
 │    Avg 48 tok/s · TTFT 4.5s · Avg 5.0s     │
 │    Tokens today 30.1M                      │
-│ ● Claude Code                    ~97 tok/s │
+│ ● Claude Code                     97 tok/s │
 │    ▁▂▃▅▂▃▄▃▃▄▄▃▃▄▄▅▄▅▄▅▅▄▅▄▃▁               │
-│    Avg 120 tok/s · TTFT ~950ms · Avg 2.0s  │
+│    Avg 120 tok/s · TTFT 950ms · Avg 2.0s   │
 │ ● DSH                           245 tok/s  │  (dimmed = stale)
 │    Avg 254 tok/s · TTFT 3.6s · 5d ago      │
 └─────────────────────────────────────────────┘
 ```
 
-The menu bar shows the first visible agent's name + latest tok/s (e.g. `Kimi 33 tok/s`). Click it for the dropdown: every agent with data gets a live tok/s sparkline (hover for per-sample values), rolling averages, and TTFT. `~` marks approximate values. Rows dim and show an age (`5d ago`) when an agent goes idle — the layout never collapses. Each row also shows **Tokens today**: total tokens the agent has used since local midnight (hover the line for the input / output / cache-read / cache-write breakdown).
+The menu bar shows the first visible agent's name + latest tok/s (e.g. `Kimi 33 tok/s`). Click it for the dropdown: every agent with data gets a live tok/s sparkline (hover for per-sample values), rolling averages, and TTFT. When the latest sample has no decodable rate (short or tool-only replies), the last decodable one is shown instead. Rows dim and show an age (`5d ago`) when an agent goes idle — the layout never collapses. Each row also shows **Tokens today**: total tokens the agent has used since local midnight (hover the line for the input / output / cache-read / cache-write breakdown).
 
 Right-click the menu bar item for **Refresh Now**, **Pause Refresh**, **Settings…** (refresh interval 1s/2s/5s, drag-to-reorder agents, visibility toggles) and **Quit**. Settings persist to `~/.local/share/toks/settings.json` and apply live.
 

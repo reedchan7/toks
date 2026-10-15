@@ -81,6 +81,14 @@ func formatTps(_ tps: Double?) -> String {
     return String(format: "%.0f", tps)
 }
 
+// The newest sample's tok/s, falling back to the most recent decodable one:
+// short or tool-only replies have no measurable decode window and carry nil,
+// so the raw latest sample is nil roughly half the time for Claude.
+func displayTps(_ agent: AgentStats) -> Double? {
+    if let tps = agent.last?.tokPerSec { return tps }
+    return agent.recent?.last(where: { $0.tokPerSec != nil })?.tokPerSec
+}
+
 func formatAge(msAgo: Double) -> String {
     let s = max(0, Int(msAgo / 1000))
     if s < 60 { return "\(s)s" }

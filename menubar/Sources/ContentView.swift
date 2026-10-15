@@ -110,8 +110,7 @@ private struct AgentRow: View {
                             .fixedSize() // never wrap; names stay on one line
                     }
                     Spacer(minLength: 4)
-                    let approx = agent.last?.approx == true
-                    Text("\(approx && agent.last?.tokPerSec != nil ? "~" : "")\(formatTps(agent.last?.tokPerSec))")
+                    Text(formatTps(displayTps(agent)))
                         .font(.title2.bold())
                         .monospacedDigit()
                         .foregroundStyle(stale ? .secondary : .primary)
@@ -123,8 +122,7 @@ private struct AgentRow: View {
                     .frame(height: 22)
                     .padding(.leading, 13)
                     .opacity(stale ? 0.45 : 1)
-                let mark = agent.last?.approx == true && agent.last?.ttftMs != nil ? "~" : ""
-                let summary = "Avg \(formatTps(agent.avg?.tokPerSec)) tok/s · TTFT \(mark)\(formatTtft(agent.last?.ttftMs)) · Avg \(formatTtft(agent.avg?.ttftMs))" + ageSuffix(agent, stale: stale)
+                let summary = "Avg \(formatTps(agent.avg?.tokPerSec)) tok/s · TTFT \(formatTtft(agent.last?.ttftMs)) · Avg \(formatTtft(agent.avg?.ttftMs))" + ageSuffix(agent, stale: stale)
                 Text(summary)
                     .font(.system(size: 11))
                     .monospacedDigit()

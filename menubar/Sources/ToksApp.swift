@@ -340,9 +340,9 @@ final class StatsStore: ObservableObject {
 
     var menuTitle: String {
         let name = shortNames[firstVisibleKey] ?? firstVisibleKey
-        guard let last = stats?.agents[firstVisibleKey]?.last,
-              let tps = last.tokPerSec else { return "\(name) — tok/s" }
-        return "\(name) \(last.approx ? "~" : "")\(formatTps(tps)) tok/s"
+        guard let agent = stats?.agents[firstVisibleKey],
+              let tps = displayTps(agent) else { return "\(name) — tok/s" }
+        return "\(name) \(formatTps(tps)) tok/s"
     }
 
     private func applySettings() {
